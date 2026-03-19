@@ -420,12 +420,6 @@
             transform: translateY(-2px);
         }
 
-        .is-capture-hidden {
-            opacity: 0 !important;
-            pointer-events: none !important;
-        }
-
-        
         .hint {
             position: absolute;
             bottom: calc(100% + 56px);
@@ -581,85 +575,260 @@
             }, 2250);
         });
 
-        async function captureScreenshotWithTimestamp() {
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-                window.alert('Screen capture is not supported in this browser.');
-                return;
+        function formatDisplayTimestamp(date) {
+            return date.toLocaleString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+
+        function formatFilenameTimestamp(date) {
+            const parts = [
+                date.getFullYear(),
+                String(date.getMonth() + 1).padStart(2, '0'),
+                String(date.getDate()).padStart(2, '0'),
+                String(date.getHours()).padStart(2, '0'),
+                String(date.getMinutes()).padStart(2, '0'),
+                String(date.getSeconds()).padStart(2, '0')
+            ];
+
+            return `${parts[0]}-${parts[1]}-${parts[2]}-${parts[3]}-${parts[4]}-${parts[5]}`;
+        }
+
+        function wrapCanvasText(ctx, text, maxWidth) {
+            const words = text.split(/\s+/);
+            const lines = [];
+            let currentLine = '';
+
+            words.forEach((word) => {
+                const nextLine = currentLine ? `${currentLine} ${word}` : word;
+                if (ctx.measureText(nextLine).width <= maxWidth || !currentLine) {
+                    currentLine = nextLine;
+                } else {
+                    lines.push(currentLine);
+                    currentLine = word;
+                }
+            });
+
+            if (currentLine) {
+                lines.push(currentLine);
             }
 
-            let stream;
+            return lines;
+        }
 
+        function drawPaperTexture(ctx, x, y, width, height) {
+            const paperGradient = ctx.createLinearGradient(x, y, x + width, y + height);
+            paperGradient.addColorStop(0, '#f3ecde');
+            paperGradient.addColorStop(0.45, '#eadbc2');
+            paperGradient.addColorStop(1, '#d8c3a0');
+            ctx.fillStyle = paperGradient;
+            ctx.fillRect(x, y, width, height);
+
+            for (let i = 0; i < 1800; i += 1) {
+                const grainX = x + Math.random() * width;
+                const grainY = y + Math.random() * height;
+                const grainAlpha = 0.02 + Math.random() * 0.04;
+                ctx.fillStyle = `rgba(74, 59, 47, ${grainAlpha})`;
+                ctx.fillRect(grainX, grainY, 1.5, 1.5);
+            }
+
+            const vignette = ctx.createRadialGradient(
+                x + width / 2,
+                y + height / 2,
+                width * 0.1,
+                x + width / 2,
+                y + height / 2,
+                width * 0.75
+            );
+            vignette.addColorStop(0, 'rgba(255,255,255,0)');
+            vignette.addColorStop(1, 'rgba(91, 61, 33, 0.18)');
+            ctx.fillStyle = vignette;
+            ctx.fillRect(x, y, width, height);
+        }
+
+        function drawCornerMarks(ctx, x, y, width, height) {
+            ctx.strokeStyle = 'rgba(88, 62, 42, 0.45)';
+            ctx.lineWidth = 2;
+
+            const marks = [
+                [x + 36, y + 36, 32, 0, 0, 32],
+                [x + width - 36, y + 36, -32, 0, 0, 32],
+                [x + 36, y + height - 36, 32, 0, 0, -32],
+                [x + width - 36, y + height - 36, -32, 0, 0, -32]
+            ];
+
+            marks.forEach(([mx, my, hx, hy, vx, vy]) => {
+                ctx.beginPath();
+                ctx.moveTo(mx, my + hy);
+                ctx.lineTo(mx + hx, my + hy);
+                ctx.moveTo(mx + vx, my);
+                ctx.lineTo(mx + vx, my + vy);
+                ctx.stroke();
+            });
+        }
+
+        function generateMissionCard(missionText, acceptedAt) {
+            const exportScale = Math.min(Math.max(window.devicePixelRatio || 1, 2), 3);
+            const cardWidth = 1400;
+            const cardHeight = 2000;
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(cardWidth * exportScale);
+            canvas.height = Math.round(cardHeight * exportScale);
+
+            const ctx = canvas.getContext('2d');
+            ctx.scale(exportScale, exportScale);
+
+            ctx.fillStyle = '#090706';
+            ctx.fillRect(0, 0, cardWidth, cardHeight);
+
+            const outerGlow = ctx.createRadialGradient(
+                cardWidth / 2,
+                cardHeight * 0.3,
+                100,
+                cardWidth / 2,
+                cardHeight / 2,
+                cardWidth * 0.65
+            );
+            outerGlow.addColorStop(0, 'rgba(184, 153, 71, 0.12)');
+            outerGlow.addColorStop(1, 'rgba(9, 7, 6, 0)');
+            ctx.fillStyle = outerGlow;
+            ctx.fillRect(0, 0, cardWidth, cardHeight);
+
+            const paperX = 120;
+            const paperY = 130;
+            const paperWidth = cardWidth - 240;
+            const paperHeight = cardHeight - 260;
+
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+            ctx.shadowBlur = 42;
+            ctx.shadowOffsetY = 18;
+            drawPaperTexture(ctx, paperX, paperY, paperWidth, paperHeight);
+            ctx.shadowColor = 'transparent';
+
+            ctx.strokeStyle = 'rgba(74, 59, 47, 0.22)';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(paperX + 24, paperY + 24, paperWidth - 48, paperHeight - 48);
+
+            ctx.strokeStyle = 'rgba(74, 59, 47, 0.12)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(paperX + 52, paperY + 52, paperWidth - 104, paperHeight - 104);
+            drawCornerMarks(ctx, paperX + 52, paperY + 52, paperWidth - 104, paperHeight - 104);
+
+            ctx.fillStyle = '#2b1f17';
+            ctx.textAlign = 'center';
+
+            ctx.font = '600 78px Georgia';
+            ctx.fillText('Mission Accepted', cardWidth / 2, paperY + 200);
+
+            ctx.fillStyle = '#4a3b2f';
+            ctx.font = '36px Georgia';
+            ctx.fillText(formatDisplayTimestamp(acceptedAt), cardWidth / 2, paperY + 272);
+
+            ctx.strokeStyle = 'rgba(74, 59, 47, 0.18)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(paperX + 120, paperY + 330);
+            ctx.lineTo(paperX + paperWidth - 120, paperY + 330);
+            ctx.stroke();
+
+            ctx.fillStyle = '#2b1f17';
+            ctx.font = '52px Georgia';
+            const missionLines = wrapCanvasText(ctx, missionText, paperWidth - 260);
+            const lineHeight = 78;
+            const missionBlockHeight = missionLines.length * lineHeight;
+            let missionY = paperY + paperHeight / 2 - missionBlockHeight / 2;
+
+            missionLines.forEach((line) => {
+                ctx.fillText(line, cardWidth / 2, missionY);
+                missionY += lineHeight;
+            });
+
+            ctx.fillStyle = '#4a3b2f';
+            ctx.font = '600 24px Georgia';
+            ctx.textAlign = 'center';
+            ctx.fillText('LET THE FAMILY SEE WHAT YOU\'RE WORTH', cardWidth / 2, paperY + paperHeight - 120);
+
+            return canvas;
+        }
+
+        function canvasToBlob(canvas) {
+            return new Promise((resolve, reject) => {
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        resolve(blob);
+                    } else {
+                        reject(new Error('Unable to generate image data.'));
+                    }
+                }, 'image/png');
+            });
+        }
+
+        function triggerDownload(blob, filename) {
+            const downloadUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = filename;
+            link.click();
+
+            window.setTimeout(() => {
+                URL.revokeObjectURL(downloadUrl);
+            }, 1000);
+        }
+
+        function openImageInNewTab(blob) {
+            const imageUrl = URL.createObjectURL(blob);
+            const popup = window.open(imageUrl, '_blank', 'noopener,noreferrer');
+
+            if (!popup) {
+                triggerDownload(blob, 'mission-accepted.png');
+            }
+
+            window.setTimeout(() => {
+                URL.revokeObjectURL(imageUrl);
+            }, 60_000);
+        }
+
+        async function handleAccept() {
             try {
-                closeBtn.classList.add('is-capture-hidden');
-                acceptBtn.classList.add('is-capture-hidden');
+                const acceptedAt = new Date();
+                const missionCanvas = generateMissionCard(roleText.textContent.trim(), acceptedAt);
+                const missionBlob = await canvasToBlob(missionCanvas);
+                const filename = `mission-accepted-${formatFilenameTimestamp(acceptedAt)}.png`;
+                const missionFile = new File([missionBlob], filename, { type: 'image/png' });
+                const isMobileLike = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.matchMedia('(pointer: coarse)').matches;
 
-                stream = await navigator.mediaDevices.getDisplayMedia({
-                    video: {
-                        displaySurface: 'browser'
-                    },
-                    audio: false,
-                    preferCurrentTab: true
-                });
-
-                const video = document.createElement('video');
-                video.srcObject = stream;
-                video.muted = true;
-                video.playsInline = true;
-
-                await video.play();
-                await new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
-                await new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
-
-                const canvas = document.createElement('canvas');
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-                const timestamp = new Date().toLocaleString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit'
-                });
-
-                ctx.font = '600 36px Georgia';
-                const textWidth = ctx.measureText(timestamp).width;
-                const paperCenterX = canvas.width / 2;
-                const paperBottomY = canvas.height * 0.79;
-                const captionWidth = textWidth + 72;
-                const captionHeight = 66;
-                const captionX = paperCenterX - captionWidth / 2;
-                const captionY = Math.min(canvas.height - captionHeight - 24, paperBottomY + 28);
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.72)';
-                ctx.fillRect(captionX, captionY, captionWidth, captionHeight);
-                ctx.fillStyle = '#f5efe6';
-                ctx.textAlign = 'center';
-                ctx.fillText(timestamp, paperCenterX, captionY + 43);
-
-                const link = document.createElement('a');
-                const safeTimestamp = timestamp.replace(/[,:\s]/g, '-');
-                link.download = `acceptance-${safeTimestamp}.png`;
-                link.href = canvas.toDataURL('image/png');
-                link.click();
-
-                video.pause();
-            } catch (error) {
-                console.error(error);
-            } finally {
-                closeBtn.classList.remove('is-capture-hidden');
-                acceptBtn.classList.remove('is-capture-hidden');
-                if (stream) {
-                    stream.getTracks().forEach((track) => track.stop());
+                if (
+                    navigator.share &&
+                    navigator.canShare &&
+                    navigator.canShare({ files: [missionFile] })
+                ) {
+                    await navigator.share({
+                        title: 'Mission Accepted',
+                        text: 'Your mission card is ready.',
+                        files: [missionFile]
+                    });
+                    return;
                 }
+
+                if (isMobileLike) {
+                    openImageInNewTab(missionBlob);
+                    return;
+                }
+
+                triggerDownload(missionBlob, filename);
+            } catch (error) {
+                console.error('Mission card generation failed:', error);
+                window.alert('The mission card could not be created right now. Please try again.');
             }
         }
 
         acceptBtn.addEventListener('click', () => {
-            captureScreenshotWithTimestamp();
+            handleAccept();
         });
 
         
