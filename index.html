@@ -540,6 +540,52 @@
             'Get {name} to ask you what you’re eating.'
         ];
 
+        function getQueryParam(name) {
+            const params = new URLSearchParams(window.location.search);
+            return params.get(name);
+        }
+
+        function normalizeGuestName(name) {
+            return (name || '').trim().toLowerCase();
+        }
+
+        function getCurrentGuestName(guests) {
+            const guestFromQuery = normalizeGuestName(getQueryParam('guest'));
+            const matchedGuest = guests.find((guest) => normalizeGuestName(guest) === guestFromQuery);
+
+            if (matchedGuest) {
+                return matchedGuest;
+            }
+
+            if (guestFromQuery) {
+                console.warn(`Unknown guest "${guestFromQuery}" in URL query. Falling back to default guest.`);
+            } else {
+                console.warn('No "guest" query parameter found. Falling back to default guest.');
+            }
+
+            return guests[0];
+        }
+
+        function getRandomItem(items) {
+            return items[Math.floor(Math.random() * items.length)];
+        }
+
+        function buildMissionText(currentGuest, guests, templates) {
+            const availableTargets = guests.filter(
+                (guest) => normalizeGuestName(guest) !== normalizeGuestName(currentGuest)
+            );
+
+            if (!availableTargets.length) {
+                throw new Error('No valid mission targets available.');
+            }
+
+            const chosenTarget = getRandomItem(availableTargets);
+            const chosenTemplate = getRandomItem(templates);
+            return chosenTemplate.replace('{name}', chosenTarget);
+        }
+
+        const currentGuest = getCurrentGuestName(roleNames);
+
         stage.addEventListener('click', () => {
             if (
                 stage.classList.contains('is-opening') ||
@@ -550,9 +596,7 @@
             
             
             hint.classList.remove('is-visible');
-            const chosenName = roleNames[Math.floor(Math.random() * roleNames.length)];
-            const chosenRole = roleOptions[Math.floor(Math.random() * roleOptions.length)];
-            roleText.textContent = chosenRole.replace('{name}', chosenName);
+            roleText.textContent = buildMissionText(currentGuest, roleNames, roleOptions);
             stage.classList.remove('is-closing-paper', 'is-folding', 'is-flap-open');
             stage.classList.add('is-opening');
             
