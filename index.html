@@ -245,14 +245,16 @@
         
         .stage.is-opening .flap-top {
             transform: rotateX(180deg);
-            transition-delay: 0.2s;
+            transition-delay: 0.15s;
+        }
+
+        .stage.is-flap-open .flap-top {
             z-index: 1;
         }
 
-        
-        .stage.is-opening .letter-insert {
+        .stage.is-flap-open .letter-insert {
             transform: translateY(-80%);
-            transition-delay: 0.8s;
+            transition-delay: 0s;
             z-index: 2;
         }
 
@@ -445,6 +447,7 @@
         }
 
         .stage.is-opening ~ .hint,
+        .stage.is-flap-open ~ .hint,
         .stage.is-closing-paper ~ .hint,
         .stage.is-folding ~ .hint {
             opacity: 0;
@@ -531,12 +534,16 @@
             'Get {name} to cheer with you twice.',
             'Get {name} to refill your drink twice.',
             'Make {name} check their phone twice.',
-            'Get {name} to take a bite of something you suggested.'
+            'Get {name} to take a bite of something you suggested.',
+            'Get {name} to describe their dish in detail.',
+            'Get {name} to split something with you',
+            'Get {name} to ask you what you’re eating.'
         ];
 
         stage.addEventListener('click', () => {
             if (
                 stage.classList.contains('is-opening') ||
+                stage.classList.contains('is-flap-open') ||
                 stage.classList.contains('is-closing-paper') ||
                 stage.classList.contains('is-folding')
             ) return;
@@ -546,8 +553,12 @@
             const chosenName = roleNames[Math.floor(Math.random() * roleNames.length)];
             const chosenRole = roleOptions[Math.floor(Math.random() * roleOptions.length)];
             roleText.textContent = chosenRole.replace('{name}', chosenName);
-            stage.classList.remove('is-closing-paper', 'is-folding');
+            stage.classList.remove('is-closing-paper', 'is-folding', 'is-flap-open');
             stage.classList.add('is-opening');
+            
+            setTimeout(() => {
+                stage.classList.add('is-flap-open');
+            }, 1000);
             
             
             setTimeout(() => {
@@ -566,7 +577,7 @@
 
             setTimeout(() => {
                 stage.classList.add('is-folding');
-                stage.classList.remove('is-opening', 'is-closing-paper');
+                stage.classList.remove('is-opening', 'is-flap-open', 'is-closing-paper');
             }, 1450);
 
             setTimeout(() => {
