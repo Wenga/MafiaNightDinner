@@ -37,12 +37,14 @@
             color: var(--ink);
             font-family: 'Cormorant Garamond', serif;
             min-height: 100vh;
+            min-height: 100svh;
             display: flex;
             justify-content: center;
             align-items: center;
             overflow: hidden; 
             -webkit-font-smoothing: antialiased;
             touch-action: manipulation;
+            padding: 24px 16px;
         }
 
         
@@ -76,6 +78,9 @@
             z-index: 10;
             width: 90vw;
             max-width: 420px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
         .stage {
@@ -422,16 +427,36 @@
             transform: translateY(-2px);
         }
 
-        .hint {
+        .guest-greeting {
             position: absolute;
-            bottom: calc(100% + 56px);
+            bottom: calc(100% + 128px);
             left: 50%;
             transform: translateX(-50%);
-            width: min(90vw, 900px);
+            width: min(calc(100vw - 32px), 900px);
             font-family: 'Italiana', serif;
             font-weight: 600;
             color: var(--gold);
-            font-size: 36px;
+            font-size: clamp(22px, 4vw, 32px);
+            line-height: 1.1;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            opacity: 0.72;
+            z-index: 5;
+            pointer-events: none;
+            text-align: center;
+        }
+
+        .hint {
+            position: absolute;
+            bottom: calc(100% + 46px);
+            left: 50%;
+            transform: translateX(-50%);
+            width: min(calc(100vw - 32px), 900px);
+            font-family: 'Italiana', serif;
+            font-weight: 600;
+            color: var(--gold);
+            font-size: clamp(24px, 4.8vw, 36px);
+            line-height: 1.15;
             letter-spacing: 4px;
             text-transform: uppercase;
             opacity: 0.6;
@@ -446,9 +471,13 @@
             50% { opacity: 0.8; }
         }
 
+        .stage.is-opening ~ .guest-greeting,
         .stage.is-opening ~ .hint,
+        .stage.is-flap-open ~ .guest-greeting,
         .stage.is-flap-open ~ .hint,
+        .stage.is-closing-paper ~ .guest-greeting,
         .stage.is-closing-paper ~ .hint,
+        .stage.is-folding ~ .guest-greeting,
         .stage.is-folding ~ .hint {
             opacity: 0;
             transition: opacity 0.3s ease;
@@ -463,6 +492,18 @@
             .letter-modal { padding: 30px; width: 95vw; }
             .letter-body { font-size: 17px; }
             .letter-title { font-size: 20px; }
+            .guest-greeting {
+                bottom: calc(100% + 92px);
+                width: min(calc(100vw - 24px), 520px);
+                font-size: 20px;
+                letter-spacing: 2.5px;
+            }
+            .hint {
+                bottom: calc(100% + 28px);
+                width: min(calc(100vw - 24px), 520px);
+                font-size: 22px;
+                letter-spacing: 2.5px;
+            }
         }
     </style>
 </head>
@@ -485,6 +526,7 @@
             </div>
         </div>
 
+        <div class="guest-greeting" id="guest-greeting" vid="22">Hi, David.</div>
         <div class="hint" vid="22">Open it. Say nothing of what you read.</div>
     </div>
 
@@ -525,6 +567,7 @@
         const cinematicView = document.getElementById('cinematic-view');
         const closeBtn = document.getElementById('close-btn');
         const acceptBtn = document.getElementById('accept-btn');
+        const guestGreeting = document.getElementById('guest-greeting');
         const hint = document.querySelector('.hint');
         const roleText = document.getElementById('role-text');
         const roleNames = ['David', 'Luna', 'Ruofan', 'Jiaxin', 'Linya', 'Lu'];
@@ -585,6 +628,7 @@
         }
 
         const currentGuest = getCurrentGuestName(roleNames);
+        guestGreeting.textContent = `Hi, ${currentGuest}.`;
 
         stage.addEventListener('click', () => {
             if (
